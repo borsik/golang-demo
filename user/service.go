@@ -9,9 +9,9 @@ import (
 type Service interface {
 	Store(input InputUser) (User, error)
 	Get(name string, country string, page int, pageSize int) ([]User, int64)
-	GetByID(id string) (User, error)
-	Update(id string, input InputUser) error
-	Delete(id string) error
+	GetById(id uuid.UUID) (User, error)
+	Update(id uuid.UUID, input InputUser) error
+	Delete(id uuid.UUID) error
 }
 
 type service struct {
@@ -25,15 +25,20 @@ func NewService(repository Repository, amqp MQ, logger log.FieldLogger) *service
 }
 
 func (s *service) Store(input InputUser) (User, error) {
-	user := User{ID: uuid.New().String(), FirstName: input.FirstName, LastName: input.LastName, Nickname: input.Nickname,
-		Password: input.Password, Email: input.Email, Country: strings.ToUpper(input.Country)}
-	newUser, err := s.repository.Insert(user)
+	added, err := s.repository.Insert(
+		User{
+			FirstName: input.FirstName,
+			LastName:  input.LastName,
+			Nickname:  input.Nickname,
+			Password:  input.Password,
+			Email:     input.Email,
+			Country:   strings.ToUpper(input.Country)})
 	if err != nil {
-		return newUser, err
+		return added, err
 	}
-	s.amqp.PublishMessage("create_user", user.ID)
-	s.log.Debugln("created user", user.ID)
-	return user, nil
+	s.amqp.PublishMessage("create_user", added.ID.String())
+	s.log.Debugln("created user", added.ID)
+	return added, nil
 }
 
 func (s *service) Get(name string, country string, page int, pageSize int) ([]User, int64) {
@@ -43,21 +48,21 @@ func (s *service) Get(name string, country string, page int, pageSize int) ([]Us
 	return users, totalCount
 }
 
-func (s *service) GetByID(id string) (User, error) {
-	user, err := s.repository.SelectByID(id)
+func (s *service) GetById(id uuid.UUID) (User, error) {
+	user, err := s.repository.SelectById(id)
 	return user, err
 }
 
-func (s *service) Update(id string, input InputUser) error {
+func (s *service) Update(id uuid.UUID, input InputUser) error {
 	err := s.repository.Update(id, input)
-	s.amqp.PublishMessage("update_user", id)
+	s.amqp.PublishMessage("update_user", id.String())
 	s.log.Debugln("updated user", id)
 	return err
 }
 
-func (s *service) Delete(id string) error {
+func (s *service) Delete(id uuid.UUID) error {
 	err := s.repository.Delete(id)
-	s.amqp.PublishMessage("delete_user", id)
+	s.amqp.PublishMessage("delete_user", id.String())
 	s.log.Debugln("deleted user", id)
 	return err
 }

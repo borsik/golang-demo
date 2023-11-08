@@ -2,6 +2,7 @@ package user
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"strings"
 )
@@ -9,9 +10,9 @@ import (
 type Repository interface {
 	Insert(user User) (User, error)
 	Select(name string, country string, offset int, limit int) ([]User, int64)
-	SelectByID(id string) (User, error)
-	Update(id string, input InputUser) error
-	Delete(id string) error
+	SelectById(id uuid.UUID) (User, error)
+	Update(id uuid.UUID, input InputUser) error
+	Delete(id uuid.UUID) error
 }
 
 type repository struct {
@@ -27,7 +28,8 @@ func (r *repository) Insert(user User) (User, error) {
 	if err != nil {
 		return user, err
 	}
-	return user, nil
+	added, _ := r.SelectById(user.ID)
+	return added, nil
 }
 
 func (r *repository) Select(name string, country string, offset int, limit int) ([]User, int64) {
@@ -45,7 +47,7 @@ func (r *repository) Select(name string, country string, offset int, limit int) 
 	return users, totalCount
 }
 
-func (r *repository) SelectByID(id string) (User, error) {
+func (r *repository) SelectById(id uuid.UUID) (User, error) {
 	var user User
 	err := r.db.Where("id = ?", id).First(&user).Error
 	if err != nil {
@@ -54,7 +56,7 @@ func (r *repository) SelectByID(id string) (User, error) {
 	return user, nil
 }
 
-func (r *repository) Update(id string, input InputUser) error {
+func (r *repository) Update(id uuid.UUID, input InputUser) error {
 	values := map[string]interface{}{
 		"first_name": input.FirstName,
 		"last_name":  input.LastName,
@@ -67,7 +69,7 @@ func (r *repository) Update(id string, input InputUser) error {
 	return err
 }
 
-func (r *repository) Delete(id string) error {
+func (r *repository) Delete(id uuid.UUID) error {
 	err := r.db.Delete(&User{ID: id}).Error
 	return err
 }

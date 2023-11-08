@@ -33,13 +33,13 @@ func TestFindUser(t *testing.T) {
 	defer sqlDB.Close()
 	repo := NewRepository(db)
 
-	id := uuid.New().String()
+	id := uuid.New()
 	users := sqlmock.NewRows([]string{"id", "first_name", "last_name", "nickname", "password", "email", "country"}).
 		AddRow(id, "first_name", "last_name", "nickname", "passwd", "asd@mail.ru", "kz")
 
 	expectedSQL := "SELECT (.+) FROM \"users\" WHERE id =(.+)"
 	mock.ExpectQuery(expectedSQL).WillReturnRows(users)
-	_, res := repo.SelectByID(id)
+	_, res := repo.SelectById(id)
 
 	assert.Nil(t, res)
 	assert.Nil(t, mock.ExpectationsWereMet())
@@ -50,7 +50,7 @@ func TestAddUser(t *testing.T) {
 	defer sqlDB.Close()
 	repo := NewRepository(db)
 
-	user := User{ID: uuid.New().String()}
+	user := User{}
 	addedUser, _ := repo.Insert(user)
 	assert.Equal(t, addedUser.ID, user.ID)
 }
@@ -60,7 +60,7 @@ func TestDeleteUser(t *testing.T) {
 	defer sqlDB.Close()
 	repo := NewRepository(db)
 
-	id := uuid.New().String()
+	id := uuid.New()
 	delSQL := "DELETE FROM \"users\" WHERE \"users\".\"id\" = .+"
 	mock.ExpectBegin()
 	mock.ExpectExec(delSQL).WillReturnResult(sqlmock.NewResult(1, 1))
@@ -79,7 +79,7 @@ func TestUpdateUser(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectExec(updUserSQL).WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
-	id := uuid.New().String()
+	id := uuid.New()
 	err := repo.Update(id, InputUser{FirstName: "name"})
 	assert.Nil(t, err)
 	assert.Nil(t, mock.ExpectationsWereMet())

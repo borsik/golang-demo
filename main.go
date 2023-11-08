@@ -28,7 +28,7 @@ func main() {
 	logger.SetLevel(logLevel)
 
 	gormLogger := gormv2logrus.NewGormlog(gormv2logrus.WithLogrus(logger))
-	dbDsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=5432 sslmode=disable timezone=Asia/Almaty",
+	dbDsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=5432 sslmode=disable",
 		config.DbHost, config.DbUser, config.DbPassword, config.DbName)
 	db, err := gorm.Open(postgres.Open(dbDsn), &gorm.Config{
 		Logger: gormLogger,

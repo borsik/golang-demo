@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/render"
+	"github.com/google/uuid"
 	"golang-demo/user"
 	"net/http"
 	"strconv"
@@ -25,8 +26,12 @@ func (handler *userHandler) Store(w http.ResponseWriter, r *http.Request) {
 		_ = render.Render(w, r, ErrInvalidRequest(err))
 		return
 	}
-	newUser, err := handler.userService.Store(input)
-	render.JSON(w, r, Response{newUser})
+	created, err := handler.userService.Store(input)
+	if err != nil {
+		_ = render.Render(w, r, &ErrResponse{HTTPStatusCode: 400, StatusText: "Error during create", Err: err, ErrorText: err.Error()})
+		return
+	}
+	render.JSON(w, r, Response{map[string]any{"message": "successfully created", "created": created}})
 }
 
 func (handler *userHandler) Get(w http.ResponseWriter, r *http.Request) {
@@ -62,7 +67,7 @@ func (handler *userHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	err = handler.userService.Update(userId, input)
 	if err != nil {
-		_ = render.Render(w, r, &ErrResponse{HTTPStatusCode: 400, StatusText: "Error during update", Err: err})
+		_ = render.Render(w, r, &ErrResponse{HTTPStatusCode: 400, StatusText: "Error during update", Err: err, ErrorText: err.Error()})
 		return
 	}
 	render.JSON(w, r, Response{map[string]string{"message": "successfully updated"}})
@@ -72,7 +77,7 @@ func (handler *userHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := r.Context().Value("user").(user.User).ID
 	err := handler.userService.Delete(id)
 	if err != nil {
-		_ = render.Render(w, r, &ErrResponse{HTTPStatusCode: 400, StatusText: "Error during delete", Err: err})
+		_ = render.Render(w, r, &ErrResponse{HTTPStatusCode: 400, StatusText: "Error during delete", Err: err, ErrorText: err.Error()})
 		return
 	}
 	render.JSON(w, r, Response{map[string]string{"message": "successfully deleted"}})
@@ -89,7 +94,7 @@ type ErrResponse struct {
 	ErrorText      string `json:"error,omitempty"`
 }
 
-func (e *ErrResponse) Render(w http.ResponseWriter, r *http.Request) error {
+func (e *ErrResponse) Render(_ http.ResponseWriter, r *http.Request) error {
 	render.Status(r, e.HTTPStatusCode)
 	return nil
 }
@@ -107,21 +112,18 @@ var ErrNotFound = &ErrResponse{HTTPStatusCode: 404, StatusText: "Resource not fo
 
 func (handler *userHandler) UserCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var userByID user.User
-		var err error
-
-		if userId := chi.URLParam(r, "userId"); userId != "" {
-			userByID, err = handler.userService.GetByID(userId)
-		} else {
-			_ = render.Render(w, r, ErrNotFound)
+		userIdStr := chi.URLParam(r, "userId")
+		userId, err := uuid.Parse(userIdStr)
+		if err != nil {
+			_ = render.Render(w, r, ErrInvalidRequest(err))
 			return
 		}
+		userById, err := handler.userService.GetById(userId)
 		if err != nil {
 			_ = render.Render(w, r, ErrNotFound)
 			return
 		}
-
-		ctx := context.WithValue(r.Context(), "user", userByID)
+		ctx := context.WithValue(r.Context(), "user", userById)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
