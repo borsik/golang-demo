@@ -1,0 +1,37 @@
+version: "3.7"
+
+services:
+  app:
+    tty: true
+    build: .
+    ports:
+      - "8080:8080"
+    restart: on-failure
+    volumes:
+      - .:/app
+    depends_on:
+      - postgres-db
+    networks:
+      - golang-demo
+  postgres-db:
+    image: postgres:latest
+    ports:
+      - "5432:5432"
+    volumes:
+      - ~/apps/postgres:/var/lib/postgresql/data
+    networks:
+      - golang-demo
+  rabbit-mq:
+    image: rabbitmq:3-management
+    hostname: rabbitmq
+    volumes:
+      - "./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - golang-demo
+
+networks:
+  golang-demo:
+    driver: bridge
