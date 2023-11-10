@@ -28,7 +28,7 @@ func (handler *userHandler) Store(w http.ResponseWriter, r *http.Request) {
 	}
 	created, err := handler.userService.Store(input)
 	if err != nil {
-		_ = render.Render(w, r, &ErrResponse{HTTPStatusCode: 400, StatusText: "Error during create", Err: err, ErrorText: err.Error()})
+		_ = render.Render(w, r, &ErrResponse{HTTPStatusCode: 400, StatusText: "error during create", Err: err, ErrorText: err.Error()})
 		return
 	}
 	render.JSON(w, r, Response{map[string]any{"message": "successfully created", "created": created}})
@@ -49,7 +49,7 @@ func (handler *userHandler) Get(w http.ResponseWriter, r *http.Request) {
 	country := r.URL.Query().Get("country")
 	users, totalCount, err := handler.userService.Get(name, country, page, pageSize)
 	if err != nil {
-		_ = render.Render(w, r, &ErrResponse{HTTPStatusCode: 400, StatusText: "Error during select", Err: err, ErrorText: err.Error()})
+		_ = render.Render(w, r, &ErrResponse{HTTPStatusCode: 400, StatusText: "error during select", Err: err, ErrorText: err.Error()})
 		return
 	}
 	render.JSON(w, r, Response{map[string]any{"users": users, "total_count": totalCount}})
@@ -71,7 +71,7 @@ func (handler *userHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	err = handler.userService.Update(userId, input)
 	if err != nil {
-		_ = render.Render(w, r, &ErrResponse{HTTPStatusCode: 400, StatusText: "Error during update", Err: err, ErrorText: err.Error()})
+		_ = render.Render(w, r, &ErrResponse{HTTPStatusCode: 400, StatusText: "error during update", Err: err, ErrorText: err.Error()})
 		return
 	}
 	render.JSON(w, r, Response{map[string]string{"message": "successfully updated"}})
@@ -81,7 +81,7 @@ func (handler *userHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := r.Context().Value("user").(user.User).ID
 	err := handler.userService.Delete(id)
 	if err != nil {
-		_ = render.Render(w, r, &ErrResponse{HTTPStatusCode: 400, StatusText: "Error during delete", Err: err, ErrorText: err.Error()})
+		_ = render.Render(w, r, &ErrResponse{HTTPStatusCode: 400, StatusText: "error during delete", Err: err, ErrorText: err.Error()})
 		return
 	}
 	render.JSON(w, r, Response{map[string]string{"message": "successfully deleted"}})
@@ -107,12 +107,12 @@ func ErrInvalidRequest(err error) render.Renderer {
 	return &ErrResponse{
 		Err:            err,
 		HTTPStatusCode: 400,
-		StatusText:     "Invalid request.",
+		StatusText:     "invalid request",
 		ErrorText:      err.Error(),
 	}
 }
 
-var ErrNotFound = &ErrResponse{HTTPStatusCode: 404, StatusText: "Resource not found."}
+var ErrNotFound = &ErrResponse{HTTPStatusCode: 404, StatusText: "resource not found"}
 
 func (handler *userHandler) UserCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

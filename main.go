@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/render"
 	_ "github.com/lib/pq"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/rubenv/sql-migrate"
 	log "github.com/sirupsen/logrus"
 	"golang-demo/handler"
 	"golang-demo/user"
@@ -35,6 +36,15 @@ func main() {
 	}
 	defer db.Close()
 	logger.Infoln("connected to db instance")
+
+	migrations := &migrate.FileMigrationSource{
+		Dir: "migrations",
+	}
+	n, err := migrate.Exec(db, "postgres", migrations, migrate.Up)
+	if err != nil {
+		logger.Fatalln("failed to migrate", err)
+	}
+	logger.Infoln("migrated ", n)
 
 	mqDsn := fmt.Sprintf("amqp://%s:%s@%s:5672/", config.MqPassword, config.MqUser, config.MqHost)
 	conn, err := amqp.Dial(mqDsn)

@@ -9,7 +9,7 @@ import (
 )
 
 type Repository interface {
-	Insert(user User) (uuid.UUID, error)
+	Insert(input InputUser) (uuid.UUID, error)
 	Select(name string, country string, offset int, limit int) ([]User, int64, error)
 	SelectById(id uuid.UUID) (User, error)
 	Update(id uuid.UUID, input InputUser) error
@@ -30,16 +30,16 @@ func init() {
 	psql = sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 }
 
-func (r *repository) Insert(user User) (uuid.UUID, error) {
+func (r *repository) Insert(input InputUser) (uuid.UUID, error) {
 	var id uuid.UUID
 	query :=
 		psql.Insert("users").SetMap(map[string]interface{}{
-			"first_name": user.FirstName,
-			"last_name":  user.LastName,
-			"nickname":   user.Nickname,
-			"password":   user.Password,
-			"email":      user.Email,
-			"country":    user.Country,
+			"first_name": input.FirstName,
+			"last_name":  input.LastName,
+			"nickname":   input.Nickname,
+			"password":   input.Password,
+			"email":      input.Email,
+			"country":    input.Country,
 		}).Suffix("RETURNING id")
 	err := query.RunWith(r.db).QueryRow().Scan(&id)
 	if err != nil {
@@ -94,14 +94,7 @@ func (r *repository) SelectById(id uuid.UUID) (User, error) {
 	query :=
 		psql.Select("id", "first_name", "last_name", "nickname", "password", "email", "country", "created_at", "updated_at").
 			From("users").Where(sq.Eq{"id": id})
-	rows, err := query.RunWith(r.db).Query()
-	if err != nil {
-		return u, err
-	}
-	for rows.Next() {
-		err := rows.Scan(&u.ID, &u.FirstName, &u.LastName, &u.Nickname, &u.Password, &u.Email, &u.Country, &u.CreatedAt, &u.UpdatedAt)
-		return u, err
-	}
+	err := query.RunWith(r.db).QueryRow().Scan(&u.ID, &u.FirstName, &u.LastName, &u.Nickname, &u.Password, &u.Email, &u.Country, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		return u, err
 	}

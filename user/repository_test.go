@@ -64,12 +64,10 @@ func TestAddUser(t *testing.T) {
 	defer db.Close()
 	repo := NewRepository(db)
 
-	user := User{ID: uuid.New(), FirstName: "first", LastName: "last", Nickname: "nick"}
 	expectedQuery := "INSERT INTO users (.+) VALUES (.+) RETURNING id"
-
 	mock.ExpectQuery(expectedQuery).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
 
-	_, err := repo.Insert(user)
+	_, err := repo.Insert(InputUser{FirstName: "first", LastName: "last", Nickname: "nick"})
 	assert.Nil(t, mock.ExpectationsWereMet())
 	assert.Nil(t, err)
 }

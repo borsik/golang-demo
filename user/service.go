@@ -24,14 +24,7 @@ func NewService(repository Repository, amqp MQ, logger log.FieldLogger) *service
 }
 
 func (s *service) Store(input InputUser) (uuid.UUID, error) {
-	id, err := s.repository.Insert(
-		User{
-			FirstName: input.FirstName,
-			LastName:  input.LastName,
-			Nickname:  input.Nickname,
-			Password:  input.Password,
-			Email:     input.Email,
-			Country:   input.Country})
+	id, err := s.repository.Insert(input)
 	if err != nil {
 		return id, err
 	}
