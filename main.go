@@ -1,16 +1,15 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/render"
+	_ "github.com/lib/pq"
 	amqp "github.com/rabbitmq/amqp091-go"
 	log "github.com/sirupsen/logrus"
-	gormv2logrus "github.com/thomas-tacquet/gormv2-logrus"
 	"golang-demo/handler"
 	"golang-demo/user"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 	"net/http"
 )
 
@@ -27,16 +26,14 @@ func main() {
 	logLevel, _ := log.ParseLevel(config.LogLevel)
 	logger.SetLevel(logLevel)
 
-	gormLogger := gormv2logrus.NewGormlog(gormv2logrus.WithLogrus(logger))
 	dbDsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=5432 sslmode=disable",
 		config.DbHost, config.DbUser, config.DbPassword, config.DbName)
-	db, err := gorm.Open(postgres.Open(dbDsn), &gorm.Config{
-		Logger: gormLogger,
-	})
+
+	db, err := sql.Open("postgres", dbDsn)
 	if err != nil {
 		logger.Fatalln("failed to connect db", err)
 	}
-	db.AutoMigrate(&user.User{})
+	defer db.Close()
 	logger.Infoln("connected to db instance")
 
 	mqDsn := fmt.Sprintf("amqp://%s:%s@%s:5672/", config.MqPassword, config.MqUser, config.MqHost)

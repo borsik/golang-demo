@@ -1,75 +1,129 @@
 package user
 
 import (
+	"database/sql"
 	"fmt"
+	sq "github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
-	"gorm.io/gorm"
-	"strings"
+	"time"
 )
 
 type Repository interface {
-	Insert(user User) (User, error)
-	Select(name string, country string, offset int, limit int) ([]User, int64)
+	Insert(user User) (uuid.UUID, error)
+	Select(name string, country string, offset int, limit int) ([]User, int64, error)
 	SelectById(id uuid.UUID) (User, error)
 	Update(id uuid.UUID, input InputUser) error
 	Delete(id uuid.UUID) error
 }
 
 type repository struct {
-	db *gorm.DB
+	db *sql.DB
 }
 
-func NewRepository(db *gorm.DB) *repository {
+func NewRepository(db *sql.DB) *repository {
 	return &repository{db}
 }
 
-func (r *repository) Insert(user User) (User, error) {
-	err := r.db.Create(&user).Error
-	if err != nil {
-		return user, err
-	}
-	added, _ := r.SelectById(user.ID)
-	return added, nil
+var psql sq.StatementBuilderType
+
+func init() {
+	psql = sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 }
 
-func (r *repository) Select(name string, country string, offset int, limit int) ([]User, int64) {
+func (r *repository) Insert(user User) (uuid.UUID, error) {
+	var id uuid.UUID
+	query :=
+		psql.Insert("users").SetMap(map[string]interface{}{
+			"first_name": user.FirstName,
+			"last_name":  user.LastName,
+			"nickname":   user.Nickname,
+			"password":   user.Password,
+			"email":      user.Email,
+			"country":    user.Country,
+		}).Suffix("RETURNING id")
+	err := query.RunWith(r.db).QueryRow().Scan(&id)
+	if err != nil {
+		return id, err
+	}
+	return id, nil
+}
+
+func (r *repository) Select(name string, country string, offset int, limit int) ([]User, int64, error) {
 	var users []User
 	var totalCount int64
-	db := r.db
-	if name != "" {
-		db = db.Where("first_name ILIKE ?", fmt.Sprintf("%%%s%%", name)).Or("last_name ILIKE ?", fmt.Sprintf("%%%s%%", name))
+
+	builder := func(sel sq.SelectBuilder) sq.SelectBuilder {
+		query := sel.From("users")
+		if name != "" {
+			query = query.Where("first_name ILIKE ? OR last_name ILIKE ?",
+				fmt.Sprint("%", name, "%"),
+				fmt.Sprint("%", name, "%"))
+		}
+		if country != "" {
+			query = query.Where("country = ?", country)
+		}
+		return query
 	}
-	if country != "" {
-		db = db.Where("country = ?", strings.ToUpper(country))
+
+	err := builder(psql.Select("count(1) AS total")).RunWith(r.db).QueryRow().Scan(&totalCount)
+	if err != nil {
+		return users, totalCount, err
 	}
-	db.Model(&users).Count(&totalCount)
-	db.Limit(limit).Offset(offset).Find(&users)
-	return users, totalCount
+	rows, err := builder(psql.Select("id", "first_name", "last_name", "nickname", "password", "email", "country", "created_at", "updated_at")).
+		Offset(uint64(offset)).Limit(uint64(limit)).RunWith(r.db).Query()
+	if err != nil {
+		return users, totalCount, err
+	}
+	for rows.Next() {
+		var u User
+		err := rows.Scan(&u.ID, &u.FirstName, &u.LastName, &u.Nickname, &u.Password, &u.Email, &u.Country, &u.CreatedAt, &u.UpdatedAt)
+		if err != nil {
+			return users, totalCount, err
+		}
+		users = append(users, u)
+	}
+
+	if err != nil {
+		return users, totalCount, err
+	}
+	return users, totalCount, nil
 }
 
 func (r *repository) SelectById(id uuid.UUID) (User, error) {
-	var user User
-	err := r.db.Where("id = ?", id).First(&user).Error
+	var u User
+	query :=
+		psql.Select("id", "first_name", "last_name", "nickname", "password", "email", "country", "created_at", "updated_at").
+			From("users").Where(sq.Eq{"id": id})
+	rows, err := query.RunWith(r.db).Query()
 	if err != nil {
-		return user, err
+		return u, err
 	}
-	return user, nil
+	for rows.Next() {
+		err := rows.Scan(&u.ID, &u.FirstName, &u.LastName, &u.Nickname, &u.Password, &u.Email, &u.Country, &u.CreatedAt, &u.UpdatedAt)
+		return u, err
+	}
+	if err != nil {
+		return u, err
+	}
+	return u, nil
 }
 
 func (r *repository) Update(id uuid.UUID, input InputUser) error {
-	values := map[string]interface{}{
+	query := psql.Update("users").SetMap(map[string]interface{}{
 		"first_name": input.FirstName,
 		"last_name":  input.LastName,
 		"nickname":   input.Nickname,
 		"password":   input.Password,
 		"email":      input.Email,
 		"country":    input.Country,
-	}
-	err := r.db.Model(&User{ID: id}).Updates(values).Error
+		"updated_at": time.Now(),
+	}).Where("id = ?", id)
+	_, err := query.RunWith(r.db).Exec()
 	return err
 }
 
 func (r *repository) Delete(id uuid.UUID) error {
-	err := r.db.Delete(&User{ID: id}).Error
+	query := psql.Delete("users").Where("id = ?", id)
+	_, err := query.RunWith(r.db).Exec()
 	return err
 }

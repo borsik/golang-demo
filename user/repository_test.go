@@ -4,83 +4,96 @@ import (
 	"database/sql"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
+	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 	"testing"
+	"time"
 )
 
-func DbMock(t *testing.T) (*sql.DB, *gorm.DB, sqlmock.Sqlmock) {
+func DbMock(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
 	sqldb, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatal(err)
 	}
-	gormdb, err := gorm.Open(postgres.New(postgres.Config{
-		Conn: sqldb,
-	}), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
-	})
 
 	if err != nil {
 		t.Fatal(err)
 	}
-	return sqldb, gormdb, mock
+	return sqldb, mock
 }
 
-func TestFindUser(t *testing.T) {
-	sqlDB, db, mock := DbMock(t)
-	defer sqlDB.Close()
+func TestFindUserById(t *testing.T) {
+	db, mock := DbMock(t)
+	defer db.Close()
 	repo := NewRepository(db)
 
 	id := uuid.New()
-	users := sqlmock.NewRows([]string{"id", "first_name", "last_name", "nickname", "password", "email", "country"}).
-		AddRow(id, "first_name", "last_name", "nickname", "passwd", "asd@mail.ru", "kz")
+	users := sqlmock.NewRows([]string{"id", "first_name", "last_name", "nickname", "password", "email", "country", "created_at", "updated_at"}).
+		AddRow(id, "firstname", "lastname", "nickname", "passwd", "example@mail.com", "xx", time.Now(), time.Now())
 
-	expectedSQL := "SELECT (.+) FROM \"users\" WHERE id =(.+)"
+	expectedSQL := "SELECT (.+) FROM users WHERE id =(.+)"
 	mock.ExpectQuery(expectedSQL).WillReturnRows(users)
-	_, res := repo.SelectById(id)
+	_, err := repo.SelectById(id)
 
-	assert.Nil(t, res)
+	assert.Nil(t, err)
 	assert.Nil(t, mock.ExpectationsWereMet())
 }
 
-func TestAddUser(t *testing.T) {
-	sqlDB, db, _ := DbMock(t)
-	defer sqlDB.Close()
+func TestFindUser(t *testing.T) {
+	db, mock := DbMock(t)
+	defer db.Close()
 	repo := NewRepository(db)
 
-	user := User{}
-	addedUser, _ := repo.Insert(user)
-	assert.Equal(t, addedUser.ID, user.ID)
+	expectedCount := "SELECT count(.+) AS total FROM users WHERE first_name ILIKE (.+) OR last_name ILIKE (.+)"
+	expectedSelect := "SELECT (.+) FROM users WHERE first_name ILIKE (.+) OR last_name ILIKE (.+) LIMIT (.+) OFFSET (.+)"
+
+	mock.ExpectQuery(expectedCount).WillReturnRows(sqlmock.NewRows([]string{"total"}).AddRow(0))
+
+	usersRow := sqlmock.NewRows([]string{"id", "first_name", "last_name", "nickname", "password", "email", "country", "created_at", "updated_at"}).
+		AddRow(uuid.New(), "firstname", "lastname", "nickname", "passwd", "example@mail.com", "xx", time.Now(), time.Now())
+	mock.ExpectQuery(expectedSelect).WillReturnRows(usersRow)
+
+	_, _, err := repo.Select("name", "", 0, 1)
+
+	assert.Nil(t, mock.ExpectationsWereMet())
+	assert.Nil(t, err)
+}
+
+func TestAddUser(t *testing.T) {
+	db, mock := DbMock(t)
+	defer db.Close()
+	repo := NewRepository(db)
+
+	user := User{ID: uuid.New(), FirstName: "first", LastName: "last", Nickname: "nick"}
+	expectedQuery := "INSERT INTO users (.+) VALUES (.+) RETURNING id"
+
+	mock.ExpectQuery(expectedQuery).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(uuid.New()))
+
+	_, err := repo.Insert(user)
+	assert.Nil(t, mock.ExpectationsWereMet())
+	assert.Nil(t, err)
 }
 
 func TestDeleteUser(t *testing.T) {
-	sqlDB, db, mock := DbMock(t)
-	defer sqlDB.Close()
+	db, mock := DbMock(t)
+	defer db.Close()
 	repo := NewRepository(db)
 
-	id := uuid.New()
-	delSQL := "DELETE FROM \"users\" WHERE \"users\".\"id\" = .+"
-	mock.ExpectBegin()
-	mock.ExpectExec(delSQL).WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectCommit()
-	err := repo.Delete(id)
+	expectedSQL := "DELETE FROM users WHERE id = (.+)"
+	mock.ExpectExec(expectedSQL).WillReturnResult(sqlmock.NewResult(1, 1))
+	err := repo.Delete(uuid.New())
 	assert.Nil(t, err)
 	assert.Nil(t, mock.ExpectationsWereMet())
 }
 
 func TestUpdateUser(t *testing.T) {
-	sqlDB, db, mock := DbMock(t)
-	defer sqlDB.Close()
+	db, mock := DbMock(t)
+	defer db.Close()
 	repo := NewRepository(db)
 
-	updUserSQL := "UPDATE \"users\" SET .+"
-	mock.ExpectBegin()
-	mock.ExpectExec(updUserSQL).WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectCommit()
-	id := uuid.New()
-	err := repo.Update(id, InputUser{FirstName: "name"})
+	expectedSQL := "UPDATE users SET (.+) WHERE id = (.+)"
+	mock.ExpectExec(expectedSQL).WillReturnResult(sqlmock.NewResult(1, 1))
+	err := repo.Update(uuid.New(), InputUser{FirstName: "name"})
 	assert.Nil(t, err)
 	assert.Nil(t, mock.ExpectationsWereMet())
 }

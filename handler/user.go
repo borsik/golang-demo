@@ -47,7 +47,11 @@ func (handler *userHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	name := r.URL.Query().Get("name")
 	country := r.URL.Query().Get("country")
-	users, totalCount := handler.userService.Get(name, country, page, pageSize)
+	users, totalCount, err := handler.userService.Get(name, country, page, pageSize)
+	if err != nil {
+		_ = render.Render(w, r, &ErrResponse{HTTPStatusCode: 400, StatusText: "Error during select", Err: err, ErrorText: err.Error()})
+		return
+	}
 	render.JSON(w, r, Response{map[string]any{"users": users, "total_count": totalCount}})
 }
 
