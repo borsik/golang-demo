@@ -3,6 +3,7 @@ package user
 import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Service interface {
@@ -24,11 +25,13 @@ func NewService(repository Repository, amqp MQ, logger log.FieldLogger) *service
 }
 
 func (s *service) Store(input InputUser) (uuid.UUID, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(input.Password), 14)
+	input.Password = string(bytes)
 	id, err := s.repository.Insert(input)
 	if err != nil {
 		return id, err
 	}
-	s.amqp.PublishMessage("create_user", id.String())
+	s.amqp.PublishMessage("user_create", id.String())
 	s.log.Debugln("created user", id)
 	return id, nil
 }
@@ -47,14 +50,14 @@ func (s *service) GetById(id uuid.UUID) (User, error) {
 
 func (s *service) Update(id uuid.UUID, input InputUser) error {
 	err := s.repository.Update(id, input)
-	s.amqp.PublishMessage("update_user", id.String())
+	s.amqp.PublishMessage("user_update", id.String())
 	s.log.Debugln("updated user", id)
 	return err
 }
 
 func (s *service) Delete(id uuid.UUID) error {
 	err := s.repository.Delete(id)
-	s.amqp.PublishMessage("delete_user", id.String())
+	s.amqp.PublishMessage("user_delete", id.String())
 	s.log.Debugln("deleted user", id)
 	return err
 }

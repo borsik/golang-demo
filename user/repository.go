@@ -5,6 +5,7 @@ import (
 	"fmt"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
+	"strings"
 	"time"
 )
 
@@ -60,7 +61,7 @@ func (r *repository) Select(name string, country string, offset int, limit int) 
 				fmt.Sprint("%", name, "%"))
 		}
 		if country != "" {
-			query = query.Where("country = ?", country)
+			query = query.Where("country = ?", strings.ToUpper(country))
 		}
 		return query
 	}

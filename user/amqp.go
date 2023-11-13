@@ -20,6 +20,9 @@ func NewMQ(conn *amqp.Connection, log log.FieldLogger) *mq {
 	return &mq{conn, log}
 }
 
+// PublishMessage sends message to RabbitMQ, where body contains user id
+// and queueName in [user_create, user_update, user_delete]
+// for other services notification about user changes
 func (m *mq) PublishMessage(queueName string, body string) {
 	ch, err := m.conn.Channel()
 	if err != nil {

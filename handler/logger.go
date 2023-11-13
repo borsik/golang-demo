@@ -7,6 +7,7 @@ import (
 	"net/http"
 )
 
+// LoggerWithLevel logger middleware implementation for chi
 func LoggerWithLevel(logger log.FieldLogger, level log.Level) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {

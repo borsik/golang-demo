@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// Health handler for basic healthcheck functionality
 func Health(dbDsn string, mqDsn string) (*health.Health, error) {
 	h, _ := health.New(health.WithComponent(health.Component{
 		Name:    "golang-demo",
