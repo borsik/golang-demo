@@ -11,6 +11,7 @@ services:
       - .:/app
     depends_on:
       - postgres-db
+      - rabbit-mq
     networks:
       - golang-demo
   postgres-db:

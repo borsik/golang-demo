@@ -13,8 +13,6 @@ type Config struct {
 	MqHost     string `mapstructure:"RABBITMQ_HOST"`
 	MqUser     string `mapstructure:"RABBITMQ_DEFAULT_USER"`
 	MqPassword string `mapstructure:"RABBITMQ_DEFAULT_PASS"`
-
-	LogLevel string `mapstructure:"LOG_LEVEL"`
 }
 
 func NewConfig() (Config, error) {

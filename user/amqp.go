@@ -13,11 +13,10 @@ type MQ interface {
 
 type mq struct {
 	conn *amqp.Connection
-	log  log.FieldLogger
 }
 
-func NewMQ(conn *amqp.Connection, log log.FieldLogger) *mq {
-	return &mq{conn, log}
+func NewMQ(conn *amqp.Connection) *mq {
+	return &mq{conn}
 }
 
 // PublishMessage sends message to RabbitMQ, where body contains user id
@@ -53,8 +52,8 @@ func (m *mq) PublishMessage(queueName string, body string) {
 		})
 
 	if err != nil {
-		m.log.Errorln("failed to send message", err)
+		log.Errorln("failed to send message", err)
 	} else {
-		m.log.Infoln("message sent", queueName, body)
+		log.Infoln("message sent", queueName, body)
 	}
 }

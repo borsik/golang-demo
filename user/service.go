@@ -17,11 +17,10 @@ type Service interface {
 type service struct {
 	repository Repository
 	amqp       MQ
-	log        log.FieldLogger
 }
 
-func NewService(repository Repository, amqp MQ, logger log.FieldLogger) *service {
-	return &service{repository, amqp, logger}
+func NewService(repository Repository, amqp MQ) *service {
+	return &service{repository, amqp}
 }
 
 func (s *service) Store(input InputUser) (uuid.UUID, error) {
@@ -32,7 +31,7 @@ func (s *service) Store(input InputUser) (uuid.UUID, error) {
 		return id, err
 	}
 	s.amqp.PublishMessage("user_create", id.String())
-	s.log.Debugln("created user", id)
+	log.Infoln("created user", id)
 	return id, nil
 }
 
@@ -51,13 +50,13 @@ func (s *service) GetById(id uuid.UUID) (User, error) {
 func (s *service) Update(id uuid.UUID, input InputUser) error {
 	err := s.repository.Update(id, input)
 	s.amqp.PublishMessage("user_update", id.String())
-	s.log.Debugln("updated user", id)
+	log.Infoln("updated user", id)
 	return err
 }
 
 func (s *service) Delete(id uuid.UUID) error {
 	err := s.repository.Delete(id)
 	s.amqp.PublishMessage("user_delete", id.String())
-	s.log.Debugln("deleted user", id)
+	log.Infoln("deleted user", id)
 	return err
 }

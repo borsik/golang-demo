@@ -12,60 +12,57 @@ import (
 	"golang-demo/handler"
 	"golang-demo/user"
 	"net/http"
+	"os"
 )
 
 func main() {
+	log.SetOutput(os.Stdout)
+	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
+
 	config, err := NewConfig()
 	if err != nil {
-		panic(err)
+		log.Fatalln("failed to read config", err)
 	}
-
-	var logger = log.New()
-	logFormatter := new(log.TextFormatter)
-	logFormatter.FullTimestamp = true
-	logger.SetFormatter(logFormatter)
-	logLevel, _ := log.ParseLevel(config.LogLevel)
-	logger.SetLevel(logLevel)
 
 	dbDsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=5432 sslmode=disable",
 		config.DbHost, config.DbUser, config.DbPassword, config.DbName)
 
 	db, err := sql.Open("postgres", dbDsn)
 	if err != nil {
-		logger.Fatalln("failed to connect db", err)
+		log.Fatalln("failed to connect db", err)
 	}
 	defer db.Close()
-	logger.Infoln("connected to db instance")
+	log.Infoln("connected to db instance")
 
 	migrations := &migrate.FileMigrationSource{
 		Dir: "migrations",
 	}
 	n, err := migrate.Exec(db, "postgres", migrations, migrate.Up)
 	if err != nil {
-		logger.Fatalln("failed to migrate", err)
+		log.Fatalln("failed to migrate", err)
 	}
-	logger.Infoln("migrated ", n)
+	log.Infoln("migrated ", n)
 
 	mqDsn := fmt.Sprintf("amqp://%s:%s@%s:5672/", config.MqPassword, config.MqUser, config.MqHost)
 	conn, err := amqp.Dial(mqDsn)
 	if err != nil {
-		logger.Fatalln("failed to connect mq", err)
+		log.Fatalln("failed to connect mq", err)
 	}
 	defer conn.Close()
-	logger.Infoln("connected to mq instance")
+	log.Infoln("connected to mq instance")
 
 	h, err := handler.Health(dbDsn, mqDsn)
 	if err != nil {
-		logger.Panicln("failed to register status", err)
+		log.Panicln("failed to register status", err)
 	}
 
 	userRepository := user.NewRepository(db)
-	mQ := user.NewMQ(conn, logger)
-	userService := user.NewService(userRepository, mQ, logger)
+	mQ := user.NewMQ(conn)
+	userService := user.NewService(userRepository, mQ)
 	userHandler := handler.NewUserHandler(userService)
 
 	r := chi.NewRouter()
-	r.Use(handler.LoggerWithLevel(logger, log.InfoLevel))
+	r.Use(handler.LoggerWithLevel(log.InfoLevel))
 	r.Use(render.SetContentType(render.ContentTypeJSON))
 
 	r.Route("/users", func(r chi.Router) {
@@ -80,8 +77,5 @@ func main() {
 	})
 	r.Get("/status", h.HandlerFunc)
 
-	err = http.ListenAndServe(":8080", r)
-	if err != nil {
-		logger.Fatalln("failed to start", err)
-	}
+	http.ListenAndServe(":8080", r)
 }

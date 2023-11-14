@@ -8,7 +8,7 @@ import (
 )
 
 // LoggerWithLevel logger middleware implementation for chi
-func LoggerWithLevel(logger log.FieldLogger, level log.Level) func(h http.Handler) http.Handler {
+func LoggerWithLevel(level log.Level) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			reqID := middleware.GetReqID(r.Context())
@@ -31,7 +31,7 @@ func LoggerWithLevel(logger log.FieldLogger, level log.Level) func(h http.Handle
 				if len(reqID) > 0 {
 					fields["request_id"] = reqID
 				}
-				logger.WithFields(fields).Logf(level, "%s://%s%s", scheme, r.Host, r.RequestURI)
+				log.WithFields(fields).Logf(level, "%s://%s%s", scheme, r.Host, r.RequestURI)
 			}()
 
 			h.ServeHTTP(ww, r)
