@@ -1,4 +1,4 @@
-package handler
+package user
 
 import (
 	"context"
@@ -7,17 +7,16 @@ import (
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
-	"golang-demo/user"
 	"net/http"
 	"strconv"
 	"strings"
 )
 
 type userHandler struct {
-	userService user.Service
+	userService Service
 }
 
-func NewUserHandler(userService user.Service) *userHandler {
+func NewUserHandler(userService Service) *userHandler {
 	return &userHandler{userService}
 }
 
@@ -44,7 +43,7 @@ func validationErrorsToStr(errors validator.ValidationErrors) string {
 }
 
 func (handler *userHandler) Store(w http.ResponseWriter, r *http.Request) {
-	var input user.InputUser
+	var input InputUser
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
 		_ = render.Render(w, r, ErrInvalidRequest(err))
@@ -89,13 +88,13 @@ func (handler *userHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (handler *userHandler) GetByID(w http.ResponseWriter, r *http.Request) {
-	userByID := r.Context().Value("user").(user.User)
+	userByID := r.Context().Value("user").(User)
 	render.JSON(w, r, Response{userByID})
 }
 
 func (handler *userHandler) Update(w http.ResponseWriter, r *http.Request) {
-	userId := r.Context().Value("user").(user.User).ID
-	var input user.InputUser
+	userId := r.Context().Value("user").(User).ID
+	var input InputUser
 	err := json.NewDecoder(r.Body).Decode(&input)
 	if err != nil {
 		_ = render.Render(w, r, ErrInvalidRequest(err))
@@ -118,7 +117,7 @@ func (handler *userHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (handler *userHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	id := r.Context().Value("user").(user.User).ID
+	id := r.Context().Value("user").(User).ID
 	err := handler.userService.Delete(id)
 	if err != nil {
 		_ = render.Render(w, r, &ErrResponse{HTTPStatusCode: 400, StatusText: "error during delete", Err: err, ErrorText: err.Error()})
